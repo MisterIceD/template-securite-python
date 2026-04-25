@@ -274,7 +274,7 @@ Pillow = ">=8.3.2,<9.2.dev0 || >=9.3.dev0"
 [package.extras]
 dev = ["bandit", "black", "mypy", "pre-commit", "pylint", "pyright", "semgrep", "zizmor"]
 docs = ["lxml", "mkdocs", "mkdocs-git-revision-date-localized-plugin", "mkdocs-include-markdown-plugin", "mkdocs-macros-plugin", "mkdocs-material", "mkdocs-minify-plugin", "mkdocs-redirects", "mkdocs-with-pdf", "mknotebooks", "pdoc3"]
-test = ["brotli", "camelot-py[base]", "endesive[full]", "pytest", "pytest-cov", "qrcode", "tabula-py", "typing-extensions (>=4.0)", "uharfbuzz"]
+test = ["brotli", "camelot-py[base]", "endesive[full]", "pytest", "pytest-cov", "qrcode", "tabula-py", "typing-extensions (>=4.0) ; python_version < \"3.11\"", "uharfbuzz"]
 
 [[package]]
 name = "idna"

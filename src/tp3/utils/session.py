@@ -16,7 +16,7 @@ class Session:
         valid_flag (str): The valid flag obtained after processing the response.
     """
 
-    def __init__(self, url):
+    def __init__(self, url, challenge="1"):
         """
         Initializes a new session with the given URL.
 
@@ -24,22 +24,40 @@ class Session:
             url (str): The URL of the captcha.
         """
         self.url = url
+        self.challenge = challenge
         self.captcha_value = ""
         self.flag_value = ""
         self.valid_flag = ""
         self.http = requests.Session()
         self.response = None
-        self.current_flag = 1000
+        self.next_captcha = ""
+
+        if challenge == "1":
+            self.current_flag = 1000
+            self.max_flag = 2000
+        elif challenge == "2":
+            self.current_flag = 2000
+            self.max_flag = 3000
+        elif challenge == "3":
+            self.current_flag = 3000
+            self.max_flag = 4000
+        else:
+            self.current_flag = 1000
+            self.max_flag = 9999
 
     def prepare_request(self):
         """
         Prepares the request for sending by capturing and solving the captcha.
         """
-        captcha = Captcha(self.url, self.http)
-        captcha.capture()
-        captcha.solve()
+        if self.challenge == "2" and self.next_captcha != "":
+            self.captcha_value = self.next_captcha
+            self.next_captcha = ""
+        else:
+            captcha = Captcha(self.url, self.http)
+            captcha.capture()
+            captcha.solve()
+            self.captcha_value = captcha.get_value()
 
-        self.captcha_value = captcha.get_value()
         self.flag_value = str(self.current_flag)
 
     def submit_request(self):
@@ -58,24 +76,23 @@ class Session:
             "submit": "Envoyer",
         }
 
-        print(f"Try flag={self.flag_value} captcha={self.captcha_value}")
+        print(f"Try challenge={self.challenge} flag={self.flag_value} captcha={self.captcha_value}")
 
         self.response = self.http.post(self.url, data=data, timeout=10)
-
 
     def process_response(self):
         """
         Processes the response.
         """
         if self.response is None:
-            return None
+            return False
 
         text = self.response.text
         lowered = text.lower()
 
-        flag = re.search(r"FLAG-\d+\{[^}]+\}", text)
-        if flag:
-            self.valid_flag = flag.group(0)
+        flag = self._extract_flag(text)
+        if flag != "":
+            self.valid_flag = flag
             print(f"Flag trouve : {self.valid_flag}")
             return True
 
@@ -88,13 +105,60 @@ class Session:
             self.current_flag += 1
             return False
 
-        if self.current_flag > 2000:
-            print("Aucun flag trouve entre 1000 et 2000")
+        if self.challenge == "2":
+            next_code = self._extract_next_captcha_from_hex(text)
+
+            if next_code != "":
+                print(f"Captcha suivant depuis hex = {next_code}")
+                print(f"Flag incorrect : {self.flag_value}")
+                self.next_captcha = next_code
+                self.current_flag += 1
+                return False
+
+        if self.challenge == "3":
+            print(f"Flag incorrect : {self.flag_value}")
+            self.current_flag += 1
+            return False
+
+        if self.current_flag > self.max_flag:
+            print("Aucun flag trouve")
             return True
 
         print("Réponse inconnue du serveur :")
-        print(text[:500])
+        print(self._extract_text_preview(text))
         return False
+
+    def _extract_flag(self, text):
+        normal_flag = re.search(r"FLAG-\d+\{[^}]+\}", text)
+        if normal_flag:
+            return normal_flag.group(0)
+
+        spaced_flag = re.search(
+            r"F\s*L\s*A\s*G\s*-\s*(\d+)\s*\{\s*([^}]+?)\s*\}",
+            text,
+            re.IGNORECASE,
+        )
+
+        if spaced_flag:
+            number = spaced_flag.group(1)
+            value = spaced_flag.group(2).replace(" ", "")
+            return f"FLAG-{number}{{{value}}}"
+
+        return ""
+
+    def _extract_next_captcha_from_hex(self, text):
+        matches = re.findall(r"\b[0-9a-fA-F]{6}\b", text)
+
+        for value in matches:
+            if any(c in "abcdefABCDEF" for c in value):
+                return value
+
+        return ""
+
+    def _extract_text_preview(self, text):
+        clean = re.sub(r"<[^>]+>", " ", text)
+        clean = re.sub(r"\s+", " ", clean)
+        return clean[:500]
 
     def get_flag(self):
         """

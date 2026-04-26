@@ -31,7 +31,7 @@ class Captcha:
 
         try:
             image = Image.open(BytesIO(self.image)).convert("RGB")
-            image.save("captcha_raw.png")
+            #image.save("captcha_raw.png")
 
             cleaned = Image.new("L", image.size, 255)
 
@@ -49,7 +49,7 @@ class Captcha:
             cleaned = cleaned.resize((cleaned.width * 6, cleaned.height * 6))
             cleaned = cleaned.filter(ImageFilter.MedianFilter(size=3))
             cleaned = ImageOps.expand(cleaned, border=30, fill=255)
-            cleaned.save("captcha_clean.png")
+            #cleaned.save("captcha_clean.png")
 
             text = pytesseract.image_to_string(
                 cleaned,

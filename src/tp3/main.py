@@ -6,20 +6,27 @@ def main():
     logger.info("Starting TP3")
 
     ip = "31.220.95.27:9002"
-    challenges = {"1": f"http://{ip}/captcha1/"}
+    challenges = {
+        "1": f"http://{ip}/captcha1/",
+        "2": f"http://{ip}/captcha2/",
+    }
 
     for i in challenges:
         url = challenges[i]
-        session = Session(url)
-        session.prepare_request()
-        session.submit_request()
+        session = Session(url, i)
 
-        while not session.process_response():
+        attempts = 0
+
+        while not session.process_response() and attempts < 10000:
             session.prepare_request()
             session.submit_request()
+            attempts += 1
 
-        logger.info("Smell good !")
-        logger.info(f"Flag for {url} : {session.get_flag()}")
+        if session.get_flag():
+            logger.info("Smell good !")
+            logger.info(f"Flag for {url} : {session.get_flag()}")
+        else:
+            logger.error(f"No flag found for {url}")
 
 
 if __name__ == "__main__":

@@ -14,11 +14,12 @@ if tesseract_cmd:
 
 
 class Captcha:
-    def __init__(self, url, session=None):
+    def __init__(self, url, session=None, headers=None):
         self.url = url
         self.image = ""
         self.value = ""
         self.session = session
+        self.headers = headers or {}
 
     def solve(self):
         """
@@ -31,7 +32,6 @@ class Captcha:
 
         try:
             image = Image.open(BytesIO(self.image)).convert("RGB")
-            #image.save("captcha_raw.png")
 
             cleaned = Image.new("L", image.size, 255)
 
@@ -39,8 +39,6 @@ class Captcha:
                 for x in range(image.width):
                     r, g, b = image.getpixel((x, y))
 
-                    # Le texte du captcha est très clair/blanc sur fond bleu.
-                    # On garde les pixels clairs et on supprime le fond.
                     if r > 150 and g > 150 and b > 150:
                         cleaned.putpixel((x, y), 0)
                     else:
@@ -49,7 +47,6 @@ class Captcha:
             cleaned = cleaned.resize((cleaned.width * 6, cleaned.height * 6))
             cleaned = cleaned.filter(ImageFilter.MedianFilter(size=3))
             cleaned = ImageOps.expand(cleaned, border=30, fill=255)
-            #cleaned.save("captcha_clean.png")
 
             text = pytesseract.image_to_string(
                 cleaned,
@@ -76,22 +73,34 @@ class Captcha:
         if self.session is None:
             return
 
-        response = self.session.get(self.url, timeout=10)
-        soup = BeautifulSoup(response.text, "html.parser")
+        urls = [self.url]
 
-        image = soup.find("img")
-        if image is None or not image.get("src"):
-            print("Balise img introuvable")
+        if "?waf=0" not in self.url:
+            urls.append(self.url + "?waf=0")
+
+        for url in urls:
+            response = self.session.get(url, headers=self.headers, timeout=10)
+
+            print("URL:", url)
+            print("STATUS:", response.status_code)
+            print(response.text[:200])
+
+            soup = BeautifulSoup(response.text, "html.parser")
+
+            image = soup.find("img")
+            if image is None or not image.get("src"):
+                print("Balise img introuvable")
+                continue
+
+            image_url = urljoin(url, image.get("src"))
+            image_response = self.session.get(image_url, headers=self.headers, timeout=10)
+
+            if image_response.status_code != 200:
+                print(f"Erreur récupération captcha: {image_response.status_code}")
+                continue
+
+            self.image = image_response.content
             return
-
-        image_url = urljoin(self.url, image.get("src"))
-        image_response = self.session.get(image_url, timeout=10)
-
-        if image_response.status_code != 200:
-            print(f"Erreur récupération captcha: {image_response.status_code}")
-            return
-
-        self.image = image_response.content
 
     def get_value(self):
         """

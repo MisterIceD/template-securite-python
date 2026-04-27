@@ -41,6 +41,10 @@ class Session:
         elif challenge == "3":
             self.current_flag = 3000
             self.max_flag = 4000
+        elif challenge == "4":
+            self.current_flag = 7000
+            self.max_flag = 8000
+            self.http.headers.update({"Magic-Word": "please"})
         else:
             self.current_flag = 1000
             self.max_flag = 9999
@@ -96,6 +100,10 @@ class Session:
             print(f"Flag trouve : {self.valid_flag}")
             return True
 
+        if "access denied" in lowered:
+            print("Access denied : header Magic-Word manquant ou incorrect")
+            return True
+
         if "invalid captcha" in lowered or "incorrect captcha" in lowered:
             print(f"Captcha incorrect pour flag={self.flag_value}")
             return False
@@ -115,9 +123,14 @@ class Session:
                 self.current_flag += 1
                 return False
 
-        if self.challenge == "3":
+        if self.challenge == "3" or self.challenge == "4":
             print(f"Flag incorrect : {self.flag_value}")
             self.current_flag += 1
+
+            if self.current_flag > self.max_flag:
+                print("Aucun flag trouve")
+                return True
+
             return False
 
         if self.current_flag > self.max_flag:

@@ -44,7 +44,7 @@ class Session:
         elif challenge == "4":
             self.current_flag = 7000
             self.max_flag = 8000
-            self.http.headers.update({"Magic-Word": "please"})
+            self.http.headers.update({"Magic-Word": "camarche"})
         else:
             self.current_flag = 1000
             self.max_flag = 9999

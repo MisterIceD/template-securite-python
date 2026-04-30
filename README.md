@@ -24,6 +24,22 @@ poetry install --no-root
 
 Lancer le projet :
 
+TP1
 ```bash
-poetry run tp1
+poetry run python -m src.tp1.main
+```
+
+TP2
+```bash
+poetry run python -m tp2.main -f .\src\tp2\shellcode.txt
+```
+
+TP3
+```bash
+poetry run python -m src.tp3.main -c {numéro du challenge allant de 1 à 5}
+```
+
+TP4
+```bash
+poetry run python -m src.tp4.main
 ```
